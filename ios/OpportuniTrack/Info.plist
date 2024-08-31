@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Configs</key>
+	<dict>
+		<key>SUPABASE_KEY</key>
+		<string>$(SUPABASE_KEY)</string>
+		<key>SUPABASE_URL</key>
+		<string>$(SUPABASE_URL)</string>
+		<key>SERVER_BASE_URL</key>
+		<string>$(SERVER_BASE_URL)</string>
+	</dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>tech.jamesshah.OpportuniTrack</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>tech.jamesshah.OpportuniTrack</string>
+			</array>
+		</dict>
+	</array>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UILaunchScreen</key>
+		<dict>
+			<key>UIColorName</key>
+			<string>white</string>
+			<key>UIImageName</key>
+			<string>launch-icon</string>
+		</dict>
+	</dict>
+</dict>
+</plist>
