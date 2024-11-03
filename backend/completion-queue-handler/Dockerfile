@@ -1,4 +1,4 @@
-FROM node:latest
+FROM node:lts-alpine
 
 WORKDIR /completion-handler-queue
 COPY package*.json ./

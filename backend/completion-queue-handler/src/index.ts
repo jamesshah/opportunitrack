@@ -50,25 +50,26 @@ async function start() {
 						if (user) {
 							console.debug("user found");
 
-							// Store job application in DB
-							const count = await supabase.saveJobApplications(
-								data,
-								user.user_id!
-							);
+							supabase.savePredictionLog(data);
 
-							if (data.background_job_id) {
-								// Update background process status in DB
-								await supabase.updateBackgroundProcessStatus(
-									data.background_job_id
+							// Store job application in DB
+							const job_application =
+								await supabase.saveJobApplication(
+									data,
+									user.user_id!
 								);
-							}
+
+							// if (data.background_job_id) {
+							// 	// Update background process status in DB
+							// 	await supabase.updateBackgroundProcessStatus(
+							// 		data.background_job_id
+							// 	);
+							// }
 
 							if (user.device_token) {
 								const payload = getNotificationPayload(
 									data,
-									data.background_job_id && count
-										? count
-										: undefined
+									job_application.id
 								);
 
 								// Send notification to user
@@ -90,71 +91,70 @@ async function start() {
 
 function getNotificationPayload(
 	data: JobApplicationMessage,
+	job_application_id: number,
 	count?: number
 ): NotificationPayload {
 	let res: NotificationPayload;
+	// if (data.background_job_id) {
+	// 	res = {
+	// 		title: "Job Applications Updated!",
+	// 		subtitle: "",
+	// 		body: count
+	// 			? `All done! We've identified ${count} jobs from last ${process
+	// 					.env.BACKGROUND_PROCESSING_DAYS!} days`
+	// 			: "All done! Your job application tracker is up-to-date with the latest information.",
+	// 		badge: data.job_applications.length,
+	// 	};
 
-	if (data.background_job_id) {
-		res = {
-			title: "Job Applications Updated!",
-			subtitle: "",
-			body: count
-				? `All done! We've identified ${count} jobs from last ${process
-						.env.BACKGROUND_PROCESSING_DAYS!} days`
-				: "All done! Your job application tracker is up-to-date with the latest information.",
-			badge: data.job_applications.length,
-		};
+	// 	return res;
+	// } else {
+	switch (data.job_application.category) {
+		case JobApplicationCategory.APPLIED:
+			res = {
+				title: "New Job Application Added: Applied",
+				subtitle: "",
+				body: "You’ve just applied to a new position. Keep track of your progress in the app!🚀",
+				job_application_id,
+			};
+			break;
 
-		return res;
-	} else {
-		switch (data.job_applications[0].category) {
-			case JobApplicationCategory.APPLIED:
-				res = {
-					title: "New Job Application Added: Applied",
-					subtitle: "",
-					body: "You’ve just applied to a new position. Keep track of your progress in the app!🚀",
-					badge: data.job_applications.length,
-				};
-				break;
+		case JobApplicationCategory.INVITED_FOR_INTERVIEW:
+			res = {
+				title: "You're On the Radar!",
+				subtitle: "",
+				body: "Exciting news! An interview invite just arrived🤞🏻",
+				job_application_id,
+			};
+			break;
 
-			case JobApplicationCategory.INVITED_FOR_INTERVIEW:
-				res = {
-					title: "Interview Scheduled: You're On the Radar!",
-					subtitle: "",
-					body: "Exciting news! An interview invite just arrived🤞🏻",
-					badge: data.job_applications.length,
-				};
-				break;
+		case JobApplicationCategory.OFFERED:
+			res = {
+				title: "Offer Received: Congratulations!🎉",
+				subtitle: "",
+				body: "Great news! You’ve received a job offer. Open the app to see the details.",
+				job_application_id,
+			};
+			break;
 
-			case JobApplicationCategory.OFFERED:
-				res = {
-					title: "Offer Received: Congratulations!🎉",
-					subtitle: "",
-					body: "Great news! You’ve received a job offer. Open the app to see the details.",
-					badge: data.job_applications.length,
-				};
-				break;
+		case JobApplicationCategory.REJECTED:
+			res = {
+				title: "Application Update: Rejected",
+				subtitle: "",
+				body: "A recent application didn't make it through. But don't give up, new opportunities await!",
+				job_application_id,
+			};
+			break;
 
-			case JobApplicationCategory.REJECTED:
-				res = {
-					title: "Application Update: Rejected",
-					subtitle: "",
-					body: "A recent application didn't make it through. Don't give up, new opportunities await!",
-					badge: data.job_applications.length,
-				};
-				break;
-
-			default:
-				res = {
-					title: "Application Status Updated",
-					subtitle: "",
-					body: "Your job application status has been updated. Check the app for more details..",
-					badge: data.job_applications.length,
-				};
-				break;
-		}
-		return res;
+		default:
+			res = {
+				title: "Application Status Updated",
+				subtitle: "",
+				body: "Your job application status has been updated. Check the app for more details..",
+				job_application_id,
+			};
+			break;
 	}
+	return res;
 }
 
 async function sendNotification(
@@ -163,6 +163,9 @@ async function sendNotification(
 ) {
 	try {
 		const notification = new apn.Notification({
+			payload: {
+				job_app_id: payload.job_application_id,
+			},
 			alert: {
 				title: payload.title,
 				subtitle: payload.subtitle,
@@ -187,3 +190,6 @@ async function sendNotification(
 }
 
 start();
+
+// ot-spaces
+// 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
