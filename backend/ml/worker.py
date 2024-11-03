@@ -2,24 +2,26 @@ import redis
 import json
 from datetime import datetime, date
 from bs4 import BeautifulSoup
-from transformers import pipeline
-from gliner import GLiNER
 from enum import Enum
-import torch
-from typing import Optional
+import requests
+from typing import List
+import os
+import time
+
+class Task(Enum):
+    CLASSIFICATION = 1
+    NER = 2
 
 class TaskObj:
-    def __init__(self, data, grantId: str, backgroundJobId: Optional[int] = None) -> None:
+    def __init__(self, data, grantId: str) -> None:
         self.data = data
         self.grant_id = grantId
-        self.background_job_id = backgroundJobId
         
     @classmethod
     def from_dict(cls, task: dict) -> 'TaskObj':
         return cls(
             data=task["data"],
-            grantId=task["grantId"],
-            backgroundJobId=task["backgroundJobId"] if task["backgroundJobId"] else None
+            grantId=task["grantId"]
         )
 
 class EmailData:
@@ -90,32 +92,62 @@ class Worker:
         try:
             print("[INFO] : Worker setup started...")
 
-            if torch.backends.mps.is_available():
-                print("[INFO] : GPU is available. Running inferences on GPU")
-                mps = torch.device("mps")
-                self.classifier = pipeline(
-                    model="facebook/bart-large-mnli", device=mps)
-                self.ner_model = GLiNER.from_pretrained(
-                    "urchade/gliner_large-v2.1")
-                self.ner_model.to(mps)
-            else:
-                print("[INFO] : GPU is NOT available. Running inferences on CPU")
-                self.classifier = pipeline(model="facebook/bart-large-mnli")
-                self.ner_model = GLiNER.from_pretrained(
-                    "urchade/gliner_large-v2.1")
+            # if torch.backends.mps.is_available():
+            #     print("[INFO] : GPU is available. Running inferences on GPU")
+            #     mps = torch.device("mps")
+                # self.classifier = pipeline(
+                #     model="facebook/bart-large-mnli", device=mps)
+                # self.ner_model = GLiNER.from_pretrained(
+                #     "urchade/gliner_large-v2.1")
+                # self.ner_model.to(mps)
+            # else:
+            #     print("[INFO] : GPU is NOT available. Running inferences on CPU")
+            #     self.classifier = pipeline(model="facebook/bart-large-mnli")
+            #     self.ner_model = GLiNER.from_pretrained(
+            #         "urchade/gliner_large-v2.1")
 
-            self.redis_client = redis.Redis(
-                host='localhost', port=6379, decode_responses=True)
+            max_retries = 30  # Maximum number of retries
+            retry_interval = 1  # Time between retries in seconds
+
+            for attempt in range(max_retries):
+                self.redis_client = redis.Redis(
+                    host=os.getenv("REDIS_HOST", "redis"), port=os.getenv("REDIS_PORT", "6379"), decode_responses=True
+                )
+                self.redis_client.ping()
+                print("Connected to redis!")
+                break
 
             print("[INFO] : Worker setup completed...")
+        except redis.ConnectionError as e:
+            print(f"Attempt {attempt + 1}/{max_retries}: Failed to connect to Redis. Retrying in {retry_interval} seconds...")
+            time.sleep(retry_interval)
+            
         except Exception as err:
             print(f"[ERROR] Cannot initialize worker : {err}")
-            exit(1)
+            # exit(1)
+            
+    def query(self, query:str, labels:List[str], task:Task):
+        if task == Task.CLASSIFICATION:
+            API_URL = "https://api-inference.huggingface.co/models/facebook/bart-large-mnli"
+            headers = {"Authorization": "Bearer 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"}
+            payload = {
+                "inputs": query,
+                "parameters": {"candidate_labels": labels}
+            }
+        elif task == Task.NER:
+            API_URL = "https://jamesshah-opportunitrack-gliner.hf.space/predict"
+            headers = {"Authorization": "Bearer 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"}
+            payload = {
+                "text": query,
+                "labels": labels
+            }
+        response = requests.post(API_URL, headers=headers, json=payload)
+        return response.json()
 
     # Step 1: Clean the data and return EmailData class
     def clean_data(self, email) -> EmailData | None:
         print("cleaning data started")
-        try:            
+        try:
             return EmailData(
                 email["subject"],
                 BeautifulSoup(
@@ -132,8 +164,10 @@ class Worker:
         print("filtering data started")
 
         try:
-            result = self.classifier(email.body, candidate_labels=[
-                                     "job-application", "other"])
+            # result = self.classifier(email.body, candidate_labels=[
+            #                          "job-application", "other"])
+            result = self.query(email.body, Worker.EMAIL_TYPE_LABELS, Task.CLASSIFICATION)
+            print(result)
             
             return result["scores"][result["labels"].index("job-application")] > 0.5 # type: ignore
 
@@ -145,10 +179,11 @@ class Worker:
         print("get_application_data started")
 
         try:
-            entities = self.ner_model.predict_entities(
-                email.body, Worker.NER_LABELS)
+            # entities = self.ner_model.predict_entities(
+            #     email.body, Worker.NER_LABELS)
+            entities = self.query(email.body, Worker.NER_LABELS, Task.NER)["entities"]
 
-            # print(entities)
+            print(entities)
 
             category = self.find_job_status_from_email(email)
 
@@ -178,9 +213,12 @@ class Worker:
     def find_job_status_from_email(self, email: EmailData) -> JobApplication.Category | None:
         print("getting job status started")
         try:
-            result = self.classifier(
-                email.body, candidate_labels=Worker.APPLICATION_STATUS_LABELS)
+            # result = self.classifier(
+            #     email.body, candidate_labels=Worker.APPLICATION_STATUS_LABELS)
             # print(result)
+            
+            result = self.query(email.body, Worker.APPLICATION_STATUS_LABELS, Task.CLASSIFICATION)
+            
             return JobApplication.Category.getFromLabel(result["labels"][result["scores"].index(max(result["scores"]))]) # type: ignore
         except Exception as err:
             print(f"[ERROR] Cannot find job status from email: {err}")
@@ -191,42 +229,36 @@ class Worker:
         try:
             taskObj = TaskObj.from_dict(json.loads(task))
         
-            print(taskObj)
+            print(taskObj.__str__)
             
-            output = []
+            output = {}
             print("STARTED cleaning data...")
-            cleaned_emails = map(lambda email: self.clean_data(email), taskObj.data)
+            email = self.clean_data(taskObj.data)
             
             print("COMPLETED cleaning data...")
-            
-            for email in cleaned_emails:
-                if email == None:
-                    print("[Warning] Could not clean email. Skipping the email...")
-                    pass
+                        
+            if email == None:
+                print("[Warning] Could not clean email. Skipping the email...")
+                pass
+            else:
+                print("STARTED filtering email")
+                if (self.is_email_job_related(email)):
+                    job_application = self.get_application_data(email)
+                    if (job_application):
+                        output = job_application.to_dict()
+                        print("Processing completed. Pushing data into completion queue...")
+                
+                        final_output = {
+                            'job_application': output,
+                            "email_data": email,
+                            "grant_id": taskObj.grant_id
+                        }                
+                        self.redis_client.lpush(
+                            'completion-queue', json.dumps(final_output, indent=2)
+                        )
+                        print("Data pushed successfully!")
                 else:
-                    print("STARTED filtering email")
-                    if (self.is_email_job_related(email)):
-                        job_application = self.get_application_data(email)
-                        if (job_application):
-                            output.append(job_application.to_dict())
-                    else:
-                        print("Email was not job related")
-            
-            print("Processing completed. Pushing data into completion queue...")
-            
-            final_output = {
-                "job_applications": output,
-                "grant_id": taskObj.grant_id
-            }
-            
-            if taskObj.background_job_id  is not None:
-                final_output["background_job_id"] = taskObj.background_job_id
-            
-            self.redis_client.lpush(
-                'completion-queue', json.dumps(final_output, indent=2)
-            )
-            
-            print("Data pushed successfully!")
+                    print("Email was not job related")
         
         except KeyError as err:
             print("Invalid input message. Cannot process task", err)
@@ -243,5 +275,6 @@ class Worker:
 
 
 if __name__ == "__main__":
+    print("starting worker.py")
     worker = Worker()
     worker.start()
