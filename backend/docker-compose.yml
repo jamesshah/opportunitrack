@@ -35,7 +35,12 @@ services:
         volumes:
             - ./certbot/conf:/etc/letsencrypt
             - ./certbot/www:/var/www/certbot
-        command: certonly --webroot -w /var/www/certbot -d ${APP_DOMAIN} --email ${ADMIN_EMAIL} --agree-tos
+        # To generate new
+        # command: certonly --webroot -w /var/www/certbot -d ${APP_DOMAIN} --email ${ADMIN_EMAIL} --agree-tos
+        # Change the command to handle renewals
+        command: renew
+        entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
         env_file:
             - .env
         environment:
