@@ -16,7 +16,7 @@ services:
         profiles:
             - production
         volumes:
-            - .ngnix/nginx.conf:/etc/nginx/nginx.conf
+            - ./ngnix/nginx.conf:/etc/nginx/nginx.conf
             - ./certbot/conf:/etc/letsencrypt # Optional in development
             - ./certbot/www:/var/www/certbot # Optional in development
         restart: unless-stopped
