@@ -2,3 +2,4 @@
 *.excalidraw
 .kamal
 *.mp4
+.env
