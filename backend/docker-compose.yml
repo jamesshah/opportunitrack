@@ -4,7 +4,43 @@ services:
         command: redis-server
         container_name: redis
         ports:
-            - "6379:6379"
+            - "6379"
+        networks:
+            - ot-network
+
+    nginx:
+        image: nginx:alpine
+        ports:
+            - 80:80
+            - 443:443
+        profiles:
+            - production
+        volumes:
+            - .ngnix/nginx.conf:/etc/nginx/nginx.conf
+            - ./certbot/conf:/etc/letsencrypt # Optional in development
+            - ./certbot/www:/var/www/certbot # Optional in development
+        restart: unless-stopped
+        env_file:
+            - .env
+        environment:
+            - APP_DOMAIN=${APP_DOMAIN}
+            - NODE_ENV=${NODE_ENV}
+        networks:
+            - ot-network
+
+    certbot:
+        image: certbot/certbot
+        profiles:
+            - production
+        volumes:
+            - ./certbot/conf:/etc/letsencrypt
+            - ./certbot/www:/var/www/certbot
+        command: certonly --webroot -w /var/www/certbot -d ${APP_DOMAIN} --email ${ADMIN_EMAIL} --agree-tos
+        env_file:
+            - .env
+        environment:
+            - APP_DOMAIN=${APP_DOMAIN}
+            - ADMIN_EMAIL=${ADMIN_EMAIL}
         networks:
             - ot-network
 
@@ -16,11 +52,12 @@ services:
         ports:
             - "8000:8000"
         environment:
-            - NODE_ENV=production
+            - NODE_ENV=${NODE_ENV}
             - REDIS_HOST=redis # Use the service name 'redis' to connect
             - REDIS_PORT=6379
         env_file:
             - server/.env
+            - .env
         depends_on:
             redis:
                 condition: service_started
