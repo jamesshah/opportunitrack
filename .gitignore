@@ -3,3 +3,4 @@
 .kamal
 *.mp4
 .env
+certbot/
