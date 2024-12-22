@@ -99,6 +99,8 @@ services:
         environment:
             - REDIS_HOST=redis # Use the service name 'redis' to connect
             - REDIS_PORT=6379
+        env_file:
+            - ml/.env
         depends_on:
             redis:
                 condition: service_started

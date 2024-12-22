@@ -3,3 +3,6 @@
 .kamal
 *.mp4
 .env
+.venv
+certbot/
+backend/config
