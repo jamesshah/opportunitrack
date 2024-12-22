@@ -46,29 +46,35 @@ jobs:
 
                   # Add other environment variables as needed
               run: |
-                  ssh -i ~/.ssh/deploy_key ${{ secrets.SSH_USER }}@${{ secrets.DROPLET_IP }} "\
-                    cd /opportunitrack/backend && \
-                    git pull origin main && \
-                    echo 'APP_DOMAIN=${{ secrets.APP_DOMAIN }}' > .env && \
-                    echo 'ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}' >> .env && \
-                    echo 'NODE_ENV=${{ secrets.NODE_ENV }}' >> .env && \
-                    echo 'NER_API_URL=${{ secrets.NER_API_URL }}' > ml/.env && \
-                    echo 'NER_API_KEY=${{ secrets.NER_API_KEY }}' >> ml/.env && \
-                    echo 'CLASSIFIER_API_URL=${{ secrets.CLASSIFIER_API_URL }}' >> ml/.env && \
-                    echo 'CLASSIFIER_API_KEY=${{ secrets.CLASSIFIER_API_KEY }}' >> ml/.env && \
-                    echo 'NYLAS_CLIENT_ID=${{ secrets.NYLAS_CLIENT_ID }}' > server/.env && \
-                    echo 'NYLAS_API_KEY=${{ secrets.NYLAS_API_KEY }}' >> server/.env && \
-                    echo 'NYLAS_API_URL=${{ secrets.NYLAS_API_URL }}' >> server/.env && \
-                    echo 'NYLAS_WEBHOOK_SECRET=${{ secrets.NYLAS_WEBHOOK_SECRET }}' >> server/.env && \
-                    echo 'NYLAS_AUTH_CALLBACK_URI=${{ secrets.NYLAS_AUTH_CALLBACK_URI }}' >> server/.env && \
-                    echo 'SUPABASE_API_URL=${{ secrets.SUPABASE_API_URL }}' >> server/.env && \
-                    echo 'SUPABASE_API_KEY=${{ secrets.SUPABASE_API_KEY }}' >> server/.env && \
-                    echo 'SUPABASE_SECRET_KEY=${{ secrets.SUPABASE_SECRET_KEY }}' >> server/.env && \
-                    echo 'PORT=${{ secrets.PORT }}' >> server/.env && \
-                    echo 'SUPABASE_API_URL=${{ secrets.SUPABASE_API_URL }}' > completion-queue-handler/.env && \
-                    echo 'SUPABASE_API_KEY=${{ secrets.SUPABASE_API_KEY }}' >> completion-queue-handler/.env && \
-                    echo 'APN_KEY=${{ secrets.APN_KEY }}' >> completion-queue-handler/.env && \
-                    echo 'APN_KEY_ID=${{ secrets.APN_KEY_ID }}' >> completion-queue-handler/.env && \
-                    echo 'APN_TEAM_ID=${{ secrets.APN_TEAM_ID }}' >> completion-queue-handler/.env && \
-                    docker compose down && \
-                    docker compose up -d"
+                  ssh -i ~/.ssh/deploy_key ${{ secrets.SSH_USER }}@${{ secrets.DROPLET_IP }} bash << 'ENDSSH'
+                    cd /opportunitrack/backend
+                    
+                    git pull origin main
+                    
+                    echo 'APP_DOMAIN=${{ secrets.APP_DOMAIN }}' > .env
+                    echo 'ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}' >> .env
+                    echo 'NODE_ENV=${{ secrets.NODE_ENV }}' >> .env
+                    echo 'NER_API_URL=${{ secrets.NER_API_URL }}' > ml/.env
+                    echo 'NER_API_KEY=${{ secrets.NER_API_KEY }}' >> ml/.env
+                    echo 'CLASSIFIER_API_URL=${{ secrets.CLASSIFIER_API_URL }}' >> ml/.env
+                    echo 'CLASSIFIER_API_KEY=${{ secrets.CLASSIFIER_API_KEY }}' >> ml/.env
+                    
+                    echo 'NYLAS_CLIENT_ID=${{ secrets.NYLAS_CLIENT_ID }}' > server/.env
+                    echo 'NYLAS_API_KEY=${{ secrets.NYLAS_API_KEY }}' >> server/.env
+                    echo 'NYLAS_API_URL=${{ secrets.NYLAS_API_URL }}' >> server/.env
+                    echo 'NYLAS_WEBHOOK_SECRET=${{ secrets.NYLAS_WEBHOOK_SECRET }}' >> server/.env
+                    echo 'NYLAS_AUTH_CALLBACK_URI=${{ secrets.NYLAS_AUTH_CALLBACK_URI }}' >> server/.env
+                    echo 'SUPABASE_API_URL=${{ secrets.SUPABASE_API_URL }}' >> server/.env
+                    echo 'SUPABASE_API_KEY=${{ secrets.SUPABASE_API_KEY }}' >> server/.env
+                    echo 'SUPABASE_SECRET_KEY=${{ secrets.SUPABASE_SECRET_KEY }}' >> server/.env
+                    echo 'PORT=${{ secrets.PORT }}' >> server/.env
+                    
+                    echo 'SUPABASE_API_URL=${{ secrets.SUPABASE_API_URL }}' > completion-queue-handler/.env
+                    echo 'SUPABASE_API_KEY=${{ secrets.SUPABASE_API_KEY }}' >> completion-queue-handler/.env
+                    echo 'APN_KEY=${{ secrets.APN_KEY }}' >> completion-queue-handler/.env
+                    echo 'APN_KEY_ID=${{ secrets.APN_KEY_ID }}' >> completion-queue-handler/.env
+                    echo 'APN_TEAM_ID=${{ secrets.APN_TEAM_ID }}' >> completion-queue-handler/.env
+
+                    docker compose down
+                    docker compose up -d
+                  ENDSSH
