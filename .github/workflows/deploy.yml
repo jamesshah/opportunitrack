@@ -47,18 +47,22 @@ jobs:
                   # Add other environment variables as needed
               run: |
                   ssh -i ~/.ssh/deploy_key ${{ secrets.SSH_USER }}@${{ secrets.DROPLET_IP }} bash << 'ENDSSH'
-                    cd /opportunitrack/backend
+                    cd opportunitrack/backend
                     
                     git pull origin main
                     
+                    touch .env
                     echo 'APP_DOMAIN=${{ secrets.APP_DOMAIN }}' > .env
                     echo 'ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}' >> .env
                     echo 'NODE_ENV=${{ secrets.NODE_ENV }}' >> .env
+
+                    touch ml/.env
                     echo 'NER_API_URL=${{ secrets.NER_API_URL }}' > ml/.env
                     echo 'NER_API_KEY=${{ secrets.NER_API_KEY }}' >> ml/.env
                     echo 'CLASSIFIER_API_URL=${{ secrets.CLASSIFIER_API_URL }}' >> ml/.env
                     echo 'CLASSIFIER_API_KEY=${{ secrets.CLASSIFIER_API_KEY }}' >> ml/.env
                     
+                    touch server/.env
                     echo 'NYLAS_CLIENT_ID=${{ secrets.NYLAS_CLIENT_ID }}' > server/.env
                     echo 'NYLAS_API_KEY=${{ secrets.NYLAS_API_KEY }}' >> server/.env
                     echo 'NYLAS_API_URL=${{ secrets.NYLAS_API_URL }}' >> server/.env
@@ -69,6 +73,7 @@ jobs:
                     echo 'SUPABASE_SECRET_KEY=${{ secrets.SUPABASE_SECRET_KEY }}' >> server/.env
                     echo 'PORT=${{ secrets.PORT }}' >> server/.env
                     
+                    touch completion-queue-handler/.env
                     echo 'SUPABASE_API_URL=${{ secrets.SUPABASE_API_URL }}' > completion-queue-handler/.env
                     echo 'SUPABASE_API_KEY=${{ secrets.SUPABASE_API_KEY }}' >> completion-queue-handler/.env
                     echo 'APN_KEY=${{ secrets.APN_KEY }}' >> completion-queue-handler/.env
