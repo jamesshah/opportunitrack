@@ -190,6 +190,3 @@ async function sendNotification(
 }
 
 start();
-
-// ot-spaces
-// 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
