@@ -33,6 +33,14 @@ class EmailData:
 
     def __repr__(self) -> str:
         return f"\n[Subject: {self.subject},\n Body: {self.body},\n From: {self.sender},\n Date: {self.date}]"
+    
+    def to_dict(self) -> dict: 
+        return {
+            "subject": self.subject,
+            "body": self.body,
+            "date": self.date.isoformat(),
+            "sender": self.sender[0]
+        }
 
 class JobApplication:
 
@@ -92,20 +100,6 @@ class Worker:
         try:
             print("[INFO] : Worker setup started...")
 
-            # if torch.backends.mps.is_available():
-            #     print("[INFO] : GPU is available. Running inferences on GPU")
-            #     mps = torch.device("mps")
-                # self.classifier = pipeline(
-                #     model="facebook/bart-large-mnli", device=mps)
-                # self.ner_model = GLiNER.from_pretrained(
-                #     "urchade/gliner_large-v2.1")
-                # self.ner_model.to(mps)
-            # else:
-            #     print("[INFO] : GPU is NOT available. Running inferences on CPU")
-            #     self.classifier = pipeline(model="facebook/bart-large-mnli")
-            #     self.ner_model = GLiNER.from_pretrained(
-            #         "urchade/gliner_large-v2.1")
-
             max_retries = 30  # Maximum number of retries
             retry_interval = 1  # Time between retries in seconds
 
@@ -128,25 +122,31 @@ class Worker:
             
     def query(self, query:str, labels:List[str], task:Task):
         if task == Task.CLASSIFICATION:
-            API_URL = "https://api-inference.huggingface.co/models/facebook/bart-large-mnli"
-            headers = {"Authorization": "Bearer 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"}
+            API_URL = os.getenv("CLASSIFIER_API_URL")
+            API_KEY= os.getenv("CLASSIFIER_API_KEY")
+            headers = {"Authorization": f"Bearer {API_KEY}"}
             payload = {
                 "inputs": query,
                 "parameters": {"candidate_labels": labels}
             }
         elif task == Task.NER:
-            API_URL = "https://jamesshah-opportunitrack-gliner.hf.space/predict"
-            headers = {"Authorization": "Bearer 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"}
+            API_URL = os.getenv("NER_API_URL")
+            API_KEY= os.getenv("NER_API_KEY")
+            headers = {"Authorization": f"Bearer {API_KEY}"}
             payload = {
                 "text": query,
                 "labels": labels
             }
+            
+        if (API_URL == None):
+            print("Api Url not provided")
+            return Exception("Api Url not provided")
+        
         response = requests.post(API_URL, headers=headers, json=payload)
         return response.json()
 
     # Step 1: Clean the data and return EmailData class
-    def clean_data(self, email) -> EmailData | None:
-        print("cleaning data started")
+    def clean_data(self, email) -> EmailData | None:        
         try:
             return EmailData(
                 email["subject"],
@@ -158,31 +158,26 @@ class Worker:
 
         except Exception as err:
             print(f"[ERROR] Cannot clean data: {err}")
+            raise err
 
     # Step 2: Classify if this email is related to job application status
     def is_email_job_related(self, email: EmailData) -> bool | None:
-        print("filtering data started")
-
         try:
-            # result = self.classifier(email.body, candidate_labels=[
-            #                          "job-application", "other"])
-            result = self.query(email.body, Worker.EMAIL_TYPE_LABELS, Task.CLASSIFICATION)
+            result = self.query(email.body, Worker.EMAIL_TYPE_LABELS, Task.CLASSIFICATION)           
             print(result)
+            index = result["labels"].index("job-application")
             
-            return result["scores"][result["labels"].index("job-application")] > 0.5 # type: ignore
+            return result["scores"][index] > 0.5 # type: ignore
 
         except Exception as err:
             print(f"[ERROR]: Cannot filter email : {err}")
+            raise err
 
     # Step 3: Get Company Name and Job Position
     def get_application_data(self, email: EmailData) -> JobApplication | None:
-        print("get_application_data started")
-
         try:
-            # entities = self.ner_model.predict_entities(
-            #     email.body, Worker.NER_LABELS)
             entities = self.query(email.body, Worker.NER_LABELS, Task.NER)["entities"]
-
+            
             print(entities)
 
             category = self.find_job_status_from_email(email)
@@ -208,51 +203,49 @@ class Worker:
 
         except Exception as err:
             print(f"[ERROR] Cannot get application data : {err}")
+            raise err
 
     # Step 3.1: Get the job status from the email
     def find_job_status_from_email(self, email: EmailData) -> JobApplication.Category | None:
-        print("getting job status started")
         try:
-            # result = self.classifier(
-            #     email.body, candidate_labels=Worker.APPLICATION_STATUS_LABELS)
-            # print(result)
-            
             result = self.query(email.body, Worker.APPLICATION_STATUS_LABELS, Task.CLASSIFICATION)
             
-            return JobApplication.Category.getFromLabel(result["labels"][result["scores"].index(max(result["scores"]))]) # type: ignore
+            print(result)
+            
+            indexOfMaxScore = result["scores"].index(max(result["scores"]))
+            
+            return JobApplication.Category.getFromLabel(result["labels"][indexOfMaxScore])
         except Exception as err:
             print(f"[ERROR] Cannot find job status from email: {err}")
+            raise err
 
     def process_task(self, task):
-        print(f"Processing started")
-        # print(task)
         try:
             taskObj = TaskObj.from_dict(json.loads(task))
-        
-            print(taskObj.__str__)
             
-            output = {}
-            print("STARTED cleaning data...")
             email = self.clean_data(taskObj.data)
-            
-            print("COMPLETED cleaning data...")
                         
             if email == None:
                 print("[Warning] Could not clean email. Skipping the email...")
                 pass
             else:
-                print("STARTED filtering email")
+                print("COMPLETED cleaning data...")
                 if (self.is_email_job_related(email)):
                     job_application = self.get_application_data(email)
                     if (job_application):
                         output = job_application.to_dict()
                         print("Processing completed. Pushing data into completion queue...")
+                        
+                        print(output)
                 
                         final_output = {
                             'job_application': output,
-                            "email_data": email,
+                            "email_data": email.to_dict(),
                             "grant_id": taskObj.grant_id
                         }                
+                        
+                        print(final_output)
+                        
                         self.redis_client.lpush(
                             'completion-queue', json.dumps(final_output, indent=2)
                         )

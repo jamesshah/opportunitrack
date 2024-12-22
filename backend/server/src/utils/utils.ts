@@ -1,15 +1,7 @@
 import "dotenv/config";
+import { createHmac } from "node:crypto";
 
 class Utils {
-	// private static apnProvider = new apn.Provider({
-	// 	token: {
-	// 		key: "/Users/jamesshah/Downloads/AuthKey_4PVMR9XVA7.p8",
-	// 		keyId: "4PVMR9XVA7",
-	// 		teamId: "XH448HPM8W",
-	// 	},
-	// 	production: false,
-	// });
-
 	/**
 	 * Get timestamp from provided days ago. Default to 7 days ago
 	 * @param days number of days in past to get timestamp of. Defaults to 7
@@ -21,37 +13,16 @@ class Utils {
 		return Math.floor(oneMonthAgo.getTime() / 1000);
 	}
 
-	// static async sendNotification(
-	// 	title?: string,
-	// 	subtitle?: string,
-	// 	body?: string,
-	// 	badge?: number
-	// ) {
-	// 	try {
-	// 		const notification = new apn.Notification({
-	// 			alert: {
-	// 				title: title,
-	// 				subtitle: subtitle,
-	// 				body: body,
-	// 			},
-	// 			badge: badge,
-	// 			topic: "tech.jamesshah.OpportuniTrack",
-	// 		});
+	static getHmacSignature(data: any) {
+		const secret = process.env.NYLAS_WEBHOOK_SECRET;
+		if (!secret) {
+			throw Error("Nylas webhook secret not found");
+		}
+		const hmac = createHmac("sha256", secret);
+		hmac.update(data);
 
-	// 		const { sent, failed } = await Utils.apnProvider.send(
-	// 			notification,
-	// 			[process.env.iphone_device_token!]
-	// 		);
-
-	// 		if (failed.length > 0) {
-	// 			console.error("Failed to send notification:", failed);
-	// 		}
-
-	// 		console.log("Successfully sent notification!", sent);
-	// 	} catch (e) {
-	// 		console.log(`Something went wrong: ${e}`);
-	// 	}
-	// }
+		return hmac.digest("hex");
+	}
 }
 
 export default Utils;

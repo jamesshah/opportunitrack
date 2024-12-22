@@ -6,7 +6,7 @@ class Supabase {
 
 	private static config = {
 		apiUrl: process.env.SUPABASE_API_URL,
-		apiKey: process.env.SUPABASE_API_KEY,
+		apiKey: process.env.SUPABASE_SECRET_KEY,
 	};
 
 	private constructor() {}
