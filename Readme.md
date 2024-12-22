@@ -1,3 +1,5 @@
+[![Deploy to DigitalOcean](https://github.com/jamesshah/opportunitrack/actions/workflows/deploy.yml/badge.svg)](https://github.com/jamesshah/opportunitrack/actions/workflows/deploy.yml)
+
 ## OpportuniTrack - Track Your Next Opportunity, Effortlessly.
 
 OpportuniTrack is an automated job application tracker using email.
