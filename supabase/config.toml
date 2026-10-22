@@ -1,0 +1,39 @@
+project_id = "opportunitrack"
+
+[api]
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+
+[db]
+major_version = 17
+
+[auth]
+site_url = "tech.jamesshah.OpportuniTrack://"
+additional_redirect_urls = ["tech.jamesshah.OpportuniTrack://auth-callback"]
+
+# Every function authenticates its own callers (user JWT via auth.getUser,
+# cron secret, Google OIDC token, or Graph clientState), so the gateway check
+# is disabled. Provider redirects and webhooks carry no Supabase JWT.
+[functions.oauth-start]
+verify_jwt = false
+
+[functions.oauth-callback]
+verify_jwt = false
+
+[functions.gmail-webhook]
+verify_jwt = false
+
+[functions.outlook-webhook]
+verify_jwt = false
+
+[functions.process-queue]
+verify_jwt = false
+
+[functions.renew-subscriptions]
+verify_jwt = false
+
+[functions.disconnect-account]
+verify_jwt = false
+
+[functions.delete-account]
+verify_jwt = false

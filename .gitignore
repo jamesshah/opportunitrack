@@ -1,8 +1,8 @@
 .DS_Store
 *.excalidraw
-.kamal
 *.mp4
 .env
 .venv
-certbot/
-backend/config
+supabase/.temp
+supabase/.branches
+supabase/functions/.env
